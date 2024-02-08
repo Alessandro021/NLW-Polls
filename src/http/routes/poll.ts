@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prismaClient"
 import {routerPoll} from "../server"
 import { randomUUID } from "crypto"
 import { redis } from "../../lib/redis"
+import {voting } from "../../utils/voting-pub-sub"
 // import { FastifyInstance } from "fastify"
 
 
@@ -116,7 +117,12 @@ export const poll = async () => {
                     where: {id: userPreviosVoteOnPoll.id}
                 })
 
-                await redis.zincrby(pollId, -1, userPreviosVoteOnPoll.pollOptionId)
+                const votes = await redis.zincrby(pollId, -1, userPreviosVoteOnPoll.pollOptionId)
+
+                voting.publish(pollId, {
+                    pollOptionId: userPreviosVoteOnPoll.pollOptionId,
+                    votes: Number(votes)
+                })
 
             } else if(userPreviosVoteOnPoll){
                 return res.status(400).send({message: "Você já votou nessa enquete."})
@@ -138,9 +144,13 @@ export const poll = async () => {
             data: { sessionId: sessionId, pollId: pollId, pollOptionId: pollOptionId }
         })
 
-        await redis.zincrby(pollId, 1, pollOptionId)
+        const votes = await redis.zincrby(pollId, 1, pollOptionId)
     
-           
+        voting.publish(pollId, {
+            pollOptionId,
+            votes: Number(votes)
+        })
+
         return res.status(201).send()
     })
 }
