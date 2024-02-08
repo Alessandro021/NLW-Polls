@@ -5,27 +5,24 @@ type Message = {
 
 type Subscriber = (message: Message) => void
 
-class VotingPubSub {
-    private channels: Record<string, Subscriber[]> = {}
-
-    subscribe(pollId: string, subscriber: Subscriber) {
-        if(!this.channels[pollId]) {
-            this.channels[pollId] = []
-        }
-
-        this.channels[pollId].push(subscriber)
-    }
-
-    publish(pollId: string, message: Message) {
-
-        if(!this.channels[pollId]){
-            return
-        }
-
-        for(const subscriber of this.channels[pollId]) {
-            subscriber(message)
-        }
-    }
+interface Channels {
+    [key: string]: Subscriber[];
 }
 
-export const voting = new VotingPubSub()
+let channels: Channels = {};
+
+const subscribe = (pollId: string, subscriber: Subscriber) => {
+    if (!channels[pollId]) {
+        channels[pollId] = [];
+    }
+    channels[pollId].push(subscriber);
+}
+
+const publish = (pollId: string, message: Message) => {
+    if (!channels[pollId]) {
+        return;
+    }
+    channels[pollId].forEach(subscriber => subscriber(message));
+}
+
+export const voting =  {subscribe, publish}
